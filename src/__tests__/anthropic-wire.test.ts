@@ -101,7 +101,36 @@ test("AnthropicProvider sends the right request shape and parses a text response
     assert.equal(sent.model, "claude-opus-5");
     assert.equal(sent.system, "be helpful");
     assert.equal(sent.messages.length, 3);
-    assert.deepEqual(sent.messages[0], { role: "user", content: "hi" });
+    assert.deepEqual(sent.messages[0], { role: "user", content: [{ type: "text", text: "hi" }] });
+  } finally {
+    server.close();
+  }
+});
+
+test("AnthropicProvider merges two consecutive tool_result messages into one real request message", async () => {
+  const { server, url, requests } = await startFakeAnthropicServer(textOnlySse("done"));
+  try {
+    const provider = new AnthropicProvider("claude-opus-5", 4096, { apiKey: "test-key", baseURL: url });
+    await provider.complete({
+      messages: [
+        { role: "user", content: "do two things" },
+        {
+          role: "assistant",
+          content: "",
+          toolCalls: [
+            { id: "toolu_1", name: "delegate", input: { subtask: "a" } },
+            { id: "toolu_2", name: "delegate", input: { subtask: "b" } },
+          ],
+        },
+        { role: "tool_result", toolCallId: "toolu_1", content: "result a" },
+        { role: "tool_result", toolCallId: "toolu_2", content: "result b" },
+      ],
+    });
+
+    const sent = requests[0] as { messages: { role: string; content: unknown[] }[] };
+    assert.equal(sent.messages.length, 3);
+    assert.equal(sent.messages[2].role, "user");
+    assert.equal(sent.messages[2].content.length, 2);
   } finally {
     server.close();
   }

@@ -19,6 +19,19 @@ test("parseArgs reads numeric flags", () => {
   assert.equal(args?.maxTokens, 2048);
 });
 
+test("parseArgs rejects a non-numeric value for --max-delegations instead of silently producing NaN", () => {
+  assert.throws(() => parseArgs(["task", "--max-delegations", "abc"]), /--max-delegations needs a positive number/);
+});
+
+test("parseArgs rejects a non-numeric value for --max-tokens instead of silently producing NaN", () => {
+  assert.throws(() => parseArgs(["task", "--max-tokens", "abc"]), /--max-tokens needs a positive number/);
+});
+
+test("parseArgs rejects zero or negative numbers for --max-delegations", () => {
+  assert.throws(() => parseArgs(["task", "--max-delegations", "0"]), /needs a positive number/);
+  assert.throws(() => parseArgs(["task", "--max-delegations", "-5"]), /needs a positive number/);
+});
+
 test("parseArgs reads system prompt overrides", () => {
   const args = parseArgs(["task", "--planner-system", "be terse", "--worker-system", "be thorough"]);
   assert.equal(args?.plannerSystem, "be terse");

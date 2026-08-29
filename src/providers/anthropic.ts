@@ -4,10 +4,20 @@ import { ProviderError } from "./errors.js";
 import { withRetry } from "../retry.js";
 
 export function toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageParam[] {
-  const result: Anthropic.MessageParam[] = [];
+  const result: { role: "user" | "assistant"; content: Anthropic.ContentBlockParam[] }[] = [];
+
+  function pushOrMerge(role: "user" | "assistant", content: Anthropic.ContentBlockParam[]): void {
+    const last = result[result.length - 1];
+    if (last && last.role === role) {
+      last.content.push(...content);
+    } else {
+      result.push({ role, content });
+    }
+  }
+
   for (const msg of messages) {
     if (msg.role === "user") {
-      result.push({ role: "user", content: msg.content });
+      pushOrMerge("user", [{ type: "text", text: msg.content }]);
       continue;
     }
     if (msg.role === "assistant") {
@@ -16,21 +26,20 @@ export function toAnthropicMessages(messages: ChatMessage[]): Anthropic.MessageP
       for (const call of msg.toolCalls ?? []) {
         content.push({ type: "tool_use", id: call.id, name: call.name, input: call.input });
       }
-      result.push({ role: "assistant", content });
+      if (content.length === 0) content.push({ type: "text", text: "" });
+      pushOrMerge("assistant", content);
       continue;
     }
-    result.push({
-      role: "user",
-      content: [
-        {
-          type: "tool_result",
-          tool_use_id: msg.toolCallId,
-          content: msg.content,
-          is_error: msg.isError,
-        },
-      ],
-    });
+    pushOrMerge("user", [
+      {
+        type: "tool_result",
+        tool_use_id: msg.toolCallId,
+        content: msg.content,
+        is_error: msg.isError,
+      },
+    ]);
   }
+
   return result;
 }
 

@@ -57,6 +57,15 @@ export function parseArgs(argv: string[]): ParsedArgs | null {
     return value;
   }
 
+  function nextPositiveInt(flag: string, i: number): number {
+    const raw = next(flag, i);
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new Error(`${flag} needs a positive number, got "${raw}"`);
+    }
+    return value;
+  }
+
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--planner") {
@@ -66,10 +75,10 @@ export function parseArgs(argv: string[]): ParsedArgs | null {
       parsed.workerSpec = next(arg, i);
       i += 1;
     } else if (arg === "--max-delegations") {
-      parsed.maxDelegations = Number(next(arg, i));
+      parsed.maxDelegations = nextPositiveInt(arg, i);
       i += 1;
     } else if (arg === "--max-tokens") {
-      parsed.maxTokens = Number(next(arg, i));
+      parsed.maxTokens = nextPositiveInt(arg, i);
       i += 1;
     } else if (arg === "--planner-system") {
       parsed.plannerSystem = next(arg, i);
